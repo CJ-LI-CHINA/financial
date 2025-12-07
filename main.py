@@ -17,6 +17,7 @@ def main():
     parser.add_argument('--days', type=int, default=30, help='检查公司行为的天数范围')
     
     args = parser.parse_args()
+<<<<<<< HEAD
     # 创建数据库连接
     db = PostgresDB()
     
@@ -24,6 +25,12 @@ def main():
     success_codes, failed_codes = collector.update_all_stocks_data(check_corporate_actions=True)
     collector.close()
     
+=======
+    
+    # 创建数据库连接
+    db = PostgresDB()
+    
+>>>>>>> 9b6ca69a10b0cd50c15de6fec12da7b7d00a29a3
     if args.update:
         # 更新数据（默认检查公司行为）
         collector = DataCollector(db)
@@ -70,6 +77,7 @@ if __name__ == "__main__":
     # collector = DataCollector()
     # success_codes, failed_codes = collector.update_all_stocks_data(True)
     # collector.close()
+<<<<<<< HEAD
     # db = PostgresDB()
     # df = db.get_stock_data("600737","20250101","20250901")
     # db.close()
@@ -78,3 +86,9 @@ if __name__ == "__main__":
     # success_codes, failed_codes = collector.update_all_stocks_data()
     collector.close()
     # main()
+=======
+    db = PostgresDB()
+    df = db.get_stock_data("600737","20250101","20250901")
+    db.close()
+    main()
+>>>>>>> 9b6ca69a10b0cd50c15de6fec12da7b7d00a29a3
