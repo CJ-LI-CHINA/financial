@@ -49,3 +49,5 @@ class StockAnalyzer:
     def close(self):
         """关闭资源"""
         self.db.close()
+if __name__ == "__main__":
+    k =1

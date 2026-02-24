@@ -3,6 +3,7 @@ from analysis.strategies import StockAnalyzer
 from database.postgres import PostgresDB
 import argparse
 import akshare as ak
+
 df = ak.stock_zh_a_spot_em()
 k=1
 # start_date = "20100101";
