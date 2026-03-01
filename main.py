@@ -21,7 +21,7 @@ def main():
     db = PostgresDB()
     
     collector = DataCollector()
-    success_codes, failed_codes = collector.update_all_stocks_data(check_corporate_actions=True)
+    success_codes, failed_codes = collector.update_all_stocks_data()
     collector.close()
     
     
@@ -31,7 +31,7 @@ def main():
     if args.update:
         # 更新数据（默认检查公司行为）
         collector = DataCollector(db)
-        success_codes, failed_codes = collector.update_all_stocks_data(check_corporate_actions=True)
+        success_codes, failed_codes = collector.update_all_stocks_data()
         collector.close()
     
     if args.corporate_actions:
@@ -70,7 +70,9 @@ def test():
         collector.retry_failed_stocks()
         collector.close()
 if __name__ == "__main__":
-    db = PostgresDB()
-    df = db.get_stock_data("600737","20250101","20250901")
-    db.close()
+            # 更新数据（默认检查公司行为）
+    collector = DataCollector()
+    collector.db.create_tables()
+    success_codes, failed_codes = collector.update_all_stocks_data()
+    collector.close()
     main()
