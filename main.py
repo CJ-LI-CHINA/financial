@@ -19,7 +19,7 @@ def main():
     args = parser.parse_args()
     # 创建数据库连接
     db = PostgresDB()
-    
+    df = db.get_stock_data('600000', '2026-01-01', '2026-03-15')
     collector = DataCollector()
     success_codes, failed_codes = collector.update_all_stocks_data()
     collector.close()
@@ -71,8 +71,8 @@ def test():
         collector.close()
 if __name__ == "__main__":
             # 更新数据（默认检查公司行为）
-    collector = DataCollector()
-    collector.db.create_tables()
-    success_codes, failed_codes = collector.update_all_stocks_data()
-    collector.close()
+    # collector = DataCollector()
+    # collector.db.create_tables()
+    # success_codes, failed_codes = collector.update_all_stocks_data()
+    # collector.close()
     main()

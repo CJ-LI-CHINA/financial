@@ -88,11 +88,11 @@ class PostgresDB:
     def check_stocks_in_db(self):
         """检查数据库中哪些股票有数据"""
         # 获取所有A股股票列表
-        # import akshare as ak
-        # stock_list_df = ak.stock_info_a_code_name()
-        from data.collector_tdx import DataCollector
-        collector = DataCollector()
-        stock_list_df = collector.get_stock_list()
+        import akshare as ak
+        stock_list_df = ak.stock_info_a_code_name()
+        # from data.collector_tdx import DataCollector
+        # collector = DataCollector()
+        # stock_list_df = collector.get_stock_list()
         all_codes = set(stock_list_df['code'].tolist())
         
         # 查询数据库中存在的股票代码
@@ -153,6 +153,74 @@ class PostgresDB:
             return deleted_count
         except Exception as e:
             print(f"删除退市股票数据失败: {e}")
+            self.conn.rollback()
+            return 0
+    def update_indicators(self, update_rows):
+        """批量更新指标：update_rows 为 (date, code, macd, macd_signal, macd_hist, kdj_k, kdj_d, kdj_j) 列表"""
+        if not update_rows:
+            return 0
+
+        # 诊断：检查有多少行能匹配到数据库中的数据
+        codes_to_check = set((row[0], row[1]) for row in update_rows)  # (date, code) 对
+        if len(codes_to_check) > 0:
+            try:
+                sample_date, sample_code = list(codes_to_check)[0]
+                check_query = f"SELECT COUNT(*) FROM stock_data WHERE date = '{sample_date}'::date AND code = %s LIMIT 1;"
+                cur = self.conn.cursor()
+                cur.execute(check_query, (sample_code,))
+                sample_count = cur.fetchone()[0]
+                cur.close()
+                if sample_count == 0:
+                    print(f"警告：样本日期 {sample_date}、代码 {sample_code} 在数据库中无匹配记录，可能 WHERE 条件全部不匹配")
+            except Exception as e:
+                print(f"诊断检查失败: {e}")
+
+        update_query = """
+        UPDATE stock_data AS s
+        SET macd = v.macd,
+            macd_signal = v.macd_signal,
+            macd_hist = v.macd_hist,
+            kdj_k = v.kdj_k,
+            kdj_d = v.kdj_d,
+            kdj_j = v.kdj_j
+        FROM (VALUES %s) AS v(date, code, macd, macd_signal, macd_hist, kdj_k, kdj_d, kdj_j)
+        WHERE s.date = v.date::date AND s.code = v.code;
+        """
+
+        try:
+            cur = self.conn.cursor()
+            execute_values(cur, update_query, update_rows)
+            updated = cur.rowcount
+            self.conn.commit()
+            cur.close()
+            return updated
+        except Exception as e:
+            print(f"批量更新指标失败: {e}")
+            self.conn.rollback()
+            return 0
+    
+    def clear_indicators(self):
+        """清空所有 KDJ 和 MACD 指标数据，将相关列设为 NULL"""
+        clear_query = """
+        UPDATE stock_data 
+        SET macd = NULL,
+            macd_signal = NULL,
+            macd_hist = NULL,
+            kdj_k = NULL,
+            kdj_d = NULL,
+            kdj_j = NULL;
+        """
+        
+        try:
+            cur = self.conn.cursor()
+            cur.execute(clear_query)
+            cleared_count = cur.rowcount
+            self.conn.commit()
+            cur.close()
+            print(f"已清空 {cleared_count} 条记录的指标数据")
+            return cleared_count
+        except Exception as e:
+            print(f"清空指标数据失败: {e}")
             self.conn.rollback()
             return 0
     def close(self):
