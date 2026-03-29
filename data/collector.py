@@ -310,9 +310,10 @@ class DataCollector:
         print(f"完成当日数据拉取，准备插入行数: {len(data_rows_all)}，DB 接受数（估计）: {inserted_total}")
         return success_codes, failed_codes
 
-    def update_Critical_Factors(self, codes=None):
+    def update_Critical_Factors(self, codes=None, max_workers=4):
         """重新计算并更新数据库中已存在日K的 MACD 与 KDJ 指标。
         如果 `codes` 为 None，则对数据库中所有有数据的股票进行更新。
+        使用多线程加速处理，`max_workers` 控制并发线程数。
         返回更新的行数（估计）。"""
         # 确定要处理的股票列表
         if codes is None:
@@ -329,11 +330,13 @@ class DataCollector:
         end_date = determine_end_date()
         updated_total = 0
 
-        for code in codes_to_process:
+        def process_single_code(code):
+            """处理单个股票代码的指标更新"""
+            db_local = PostgresDB()  # 每个线程使用独立的数据库连接
             try:
-                df = self.db.get_stock_data(code, '1900-01-01', end_date.strftime('%Y-%m-%d'))
+                df = db_local.get_stock_data(code, '1900-01-01', end_date.strftime('%Y-%m-%d'))
                 if df is None or df.empty:
-                    continue
+                    return 0
 
                 df = df.sort_values('date').reset_index(drop=True)
 
@@ -370,11 +373,20 @@ class DataCollector:
                     unique_rows[key] = row_tuple
                 update_rows = list(unique_rows.values())
 
-                updated = self.db.update_indicators(update_rows)
-                updated_total += updated if updated else 0
+                updated = db_local.update_indicators(update_rows)
                 print(f"{code}: 原始准备更新 {len(df_calc)} 行，去重后 {len(update_rows)} 行，DB 返回 {updated}")
+                return updated if updated else 0
             except Exception as e:
                 print(f"{code} 更新指标失败: {e}")
+                return 0
+            finally:
+                db_local.close()
+
+        # 使用线程池并发处理
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(process_single_code, code) for code in codes_to_process]
+            for future in as_completed(futures):
+                updated_total += future.result()
 
         print(f"指标更新完成，总计更新行（估计）: {updated_total}")
         return updated_total
